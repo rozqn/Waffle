@@ -16,8 +16,7 @@ JDK 25 and Git:
 ./gradlew createPaperclipJar
 ```
 
-Output lands in `waffle-server/build/libs/`. See [CONTRIBUTING.md](CONTRIBUTING.md)
-for the patch workflow.
+Output lands in `waffle-server/build/libs/`.
 
 ## What differs from Paper
 

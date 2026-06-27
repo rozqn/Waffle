@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: GitHub Actions <actions@github.com>
+Date: Sat, 27 Jun 2026 10:36:42 +0000
+Subject: [PATCH] Waffle: bake optimization defaults
+
+
+diff --git a/net/minecraft/server/dedicated/DedicatedServerProperties.java b/net/minecraft/server/dedicated/DedicatedServerProperties.java
+index 639a5400499266f83cf8b7c1251483cd8fb699a4..7c6c56d7d609a6daaa4c9a1ab08012194ce7b343 100644
+--- a/net/minecraft/server/dedicated/DedicatedServerProperties.java
++++ b/net/minecraft/server/dedicated/DedicatedServerProperties.java
+@@ -87,7 +87,7 @@ public class DedicatedServerProperties extends Settings<DedicatedServerPropertie
+     public final String rconPassword = this.get("rcon.password", "");
+     public final boolean hardcore = this.get("hardcore", false);
+     public final boolean useNativeTransport = this.get("use-native-transport", true);
+-    public final Settings<DedicatedServerProperties>.MutableValue<Integer> spawnProtection = this.getMutable("spawn-protection", 16);
++    public final Settings<DedicatedServerProperties>.MutableValue<Integer> spawnProtection = this.getMutable("spawn-protection", 0);
+     public final Settings<DedicatedServerProperties>.MutableValue<LevelBasedPermissionSet> opPermissions = this.getMutable(
+         "op-permission-level", DedicatedServerProperties::deserializePermission, DedicatedServerProperties::serializePermission, LevelBasedPermissionSet.OWNER
+     );
+@@ -102,8 +102,8 @@ public class DedicatedServerProperties extends Settings<DedicatedServerPropertie
+     public final int rateLimitPacketsPerSecond = this.get("rate-limit", 0);
+     public final int commandSpamThresholdSeconds = this.get("command-spam-threshold-seconds", 10);
+     public final int chatSpamThresholdSeconds = this.get("chat-spam-threshold-seconds", 10);
+-    public final Settings<DedicatedServerProperties>.MutableValue<Integer> viewDistance = this.getMutable("view-distance", 10);
+-    public final Settings<DedicatedServerProperties>.MutableValue<Integer> simulationDistance = this.getMutable("simulation-distance", 10);
++    public final Settings<DedicatedServerProperties>.MutableValue<Integer> viewDistance = this.getMutable("view-distance", 7);
++    public final Settings<DedicatedServerProperties>.MutableValue<Integer> simulationDistance = this.getMutable("simulation-distance", 4);
+     public final Settings<DedicatedServerProperties>.MutableValue<Integer> maxPlayers = this.getMutable("max-players", 20);
+     public final int networkCompressionThreshold = this.get("network-compression-threshold", 256);
+     public final boolean broadcastRconToOps = this.get("broadcast-rcon-to-ops", true);

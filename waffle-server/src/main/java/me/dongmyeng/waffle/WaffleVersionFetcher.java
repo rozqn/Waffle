@@ -91,7 +91,7 @@ public final class WaffleVersionFetcher implements VersionFetcher {
         }
     }
 
-    // How many published releases the running build is behind the latest, mirroring how Paper counts builds.
+    // How many published stable releases the running build is behind the latest, mirroring how Paper counts builds.
     private static int releasesBehind() {
         final Optional<String> gitCommit = BUILD_INFO.gitCommit();
         if (gitCommit.isEmpty()) {
@@ -126,7 +126,7 @@ public final class WaffleVersionFetcher implements VersionFetcher {
         final List<String> tags = new ArrayList<>();
         for (final var element : releases) {
             final JsonObject release = element.getAsJsonObject();
-            if (release.has("draft") && release.get("draft").getAsBoolean()) {
+            if (release.get("draft").getAsBoolean() || release.get("prerelease").getAsBoolean()) {
                 continue;
             }
             tags.add(release.get("tag_name").getAsString());

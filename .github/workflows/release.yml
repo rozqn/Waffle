@@ -31,12 +31,16 @@ jobs:
         run: |
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
-      - name: Resolve tag
+      - name: Resolve build metadata
         id: meta
-        run: echo "tag=${{ github.event.inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "tag=${{ github.event.inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+          echo "BUILD_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
       - name: Apply patches
         run: ./gradlew applyAllPatches --stacktrace
       - name: Build paperclip jar
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
         run: ./gradlew createPaperclipJar --stacktrace
       - name: Collect jar
         id: jar

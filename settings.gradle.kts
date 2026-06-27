@@ -35,3 +35,12 @@ for (name in listOf("waffle-api", "waffle-server")) {
     include(name)
     file(name).mkdirs()
 }
+
+// Git can't track empty directories; create the patch directories on a fresh
+// checkout so paperweight reads them as empty rather than missing.
+listOf(
+    "waffle-api/paper-patches",
+    "waffle-server/paper-patches",
+    "waffle-server/minecraft-patches/features",
+    "waffle-server/minecraft-patches/sources",
+).forEach { file(it).mkdirs() }

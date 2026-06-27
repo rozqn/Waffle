@@ -1,0 +1,11 @@
+--- a/src/main/java/org/bukkit/command/defaults/VersionCommand.java
++++ b/src/main/java/org/bukkit/command/defaults/VersionCommand.java
+@@ -50,7 +_,7 @@
+         this.description = "Gets the version of this server including any plugins in use";
+         this.usageMessage = "/version [plugin name]";
+         this.setPermission("bukkit.command.version");
+-        this.setAliases(Arrays.asList("ver", "about"));
++        this.setAliases(Arrays.asList("ver", "about", "versions"));
+     }
+ 
+     @Override

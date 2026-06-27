@@ -4,7 +4,6 @@ import com.destroystokyo.paper.VersionHistoryManager;
 import com.destroystokyo.paper.util.VersionFetcher;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.mojang.logging.LogUtils;
@@ -15,6 +14,10 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -61,16 +64,7 @@ public final class WaffleVersionFetcher implements VersionFetcher {
     }
 
     private static Component getUpdateStatusMessage() {
-        final Optional<String> latestTag = fetchLatestReleaseTag();
-        if (latestTag.isEmpty()) {
-            return text("Could not check for updates", NamedTextColor.YELLOW);
-        }
-        final Optional<String> gitCommit = BUILD_INFO.gitCommit();
-        if (gitCommit.isEmpty()) {
-            return text("Unknown version", NamedTextColor.YELLOW);
-        }
-
-        final int distance = fetchDistanceFromGitHub(latestTag.get(), gitCommit.get());
+        final int distance = releasesBehind();
         return switch (distance) {
             case DISTANCE_ERROR -> text("Error obtaining version information", NamedTextColor.YELLOW);
             case 0 -> text("You are running the latest version", NamedTextColor.GREEN);
@@ -84,71 +78,87 @@ public final class WaffleVersionFetcher implements VersionFetcher {
         };
     }
 
-    private static Optional<String> fetchLatestReleaseTag() {
-        try {
-            final HttpURLConnection connection = (HttpURLConnection) URI.create("https://api.github.com/repos/" + REPOSITORY + "/releases?per_page=1").toURL().openConnection();
-            connection.setConnectTimeout(5000);
-            connection.setReadTimeout(5000);
-            connection.setRequestProperty("User-Agent", USER_AGENT);
-            connection.setRequestProperty("Accept", "application/vnd.github+json");
-            if (connection.getResponseCode() == HttpURLConnection.HTTP_NOT_FOUND) {
-                return Optional.empty();
-            }
-            try (final BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
-                final JsonArray releases = GSON.fromJson(reader, JsonArray.class);
-                if (releases == null || releases.isEmpty()) {
-                    return Optional.empty();
-                }
-                final JsonObject latest = releases.get(0).getAsJsonObject();
-                return Optional.ofNullable(latest.get("tag_name")).map(JsonElement::getAsString);
-            }
-        } catch (final IOException | JsonSyntaxException e) {
-            LOGGER.error("Error while fetching the latest release from GitHub", e);
-            return Optional.empty();
-        }
-    }
-
-    // Distance via GitHub's compare API: how many commits the running build is behind the latest release tag.
-    private static int fetchDistanceFromGitHub(final String base, final String hash) {
-        try {
-            final HttpURLConnection connection = (HttpURLConnection) URI.create("https://api.github.com/repos/%s/compare/%s...%s".formatted(REPOSITORY, base, hash)).toURL().openConnection();
-            connection.setConnectTimeout(5000);
-            connection.setReadTimeout(5000);
-            connection.setRequestProperty("User-Agent", USER_AGENT);
-            connection.setRequestProperty("Accept", "application/vnd.github+json");
-            connection.connect();
-            if (connection.getResponseCode() == HttpURLConnection.HTTP_NOT_FOUND) {
-                return DISTANCE_UNKNOWN;
-            }
-            try (final BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
-                final JsonObject obj = GSON.fromJson(reader, JsonObject.class);
-                final String status = obj.get("status").getAsString();
-                return switch (status) {
-                    case "identical", "ahead" -> 0;
-                    case "behind" -> obj.get("behind_by").getAsInt();
-                    default -> DISTANCE_ERROR;
-                };
-            }
-        } catch (final IOException | JsonSyntaxException | NumberFormatException e) {
-            LOGGER.error("Error while fetching version distance from GitHub", e);
-            return DISTANCE_ERROR;
-        }
-    }
-
     public static void getUpdateStatusStartupMessage() {
         if (BUILD_INFO.buildNumber().isEmpty() && BUILD_INFO.gitCommit().isEmpty()) {
             COMPONENT_LOGGER.warn(text("*** You are running a development version without access to version information ***"));
             return;
         }
-        final Optional<String> latestTag = fetchLatestReleaseTag();
-        final Optional<String> gitCommit = BUILD_INFO.gitCommit();
-        if (latestTag.isEmpty() || gitCommit.isEmpty()) {
-            return;
-        }
-        final int distance = fetchDistanceFromGitHub(latestTag.get(), gitCommit.get());
+        final int distance = releasesBehind();
         if (distance > 0) {
-            COMPONENT_LOGGER.warn(text("*** You are running an outdated version of Waffle, " + distance + " release" + (distance == 1 ? "" : "s") + " behind ***"));
+            COMPONENT_LOGGER.warn(text("*** You are running an outdated version of Waffle, " + distance + " version" + (distance == 1 ? "" : "s") + " behind ***"));
             COMPONENT_LOGGER.warn(text("*** Download the latest build from " + DOWNLOAD_PAGE + " ***"));
+        }
+    }
+
+    // How many published releases the running build is behind the latest, mirroring how Paper counts builds.
+    private static int releasesBehind() {
+        final Optional<String> gitCommit = BUILD_INFO.gitCommit();
+        if (gitCommit.isEmpty()) {
+            return DISTANCE_UNKNOWN;
+        }
+        final @Nullable List<String> releaseTags = fetchReleaseTags();
+        if (releaseTags == null) {
+            return DISTANCE_ERROR;
+        }
+        if (releaseTags.isEmpty()) {
+            return DISTANCE_UNKNOWN;
+        }
+        final @Nullable Map<String, String> tagCommits = fetchTagCommits();
+        if (tagCommits == null) {
+            return DISTANCE_ERROR;
+        }
+        final String commit = gitCommit.get();
+        for (int i = 0; i < releaseTags.size(); i++) {
+            final @Nullable String sha = tagCommits.get(releaseTags.get(i));
+            if (sha != null && sha.startsWith(commit)) {
+                return i;
+            }
+        }
+        return DISTANCE_UNKNOWN; // running a build that is not a published release
+    }
+
+    private static @Nullable List<String> fetchReleaseTags() {
+        final @Nullable JsonArray releases = getJsonArray("https://api.github.com/repos/" + REPOSITORY + "/releases?per_page=100");
+        if (releases == null) {
+            return null;
+        }
+        final List<String> tags = new ArrayList<>();
+        for (final var element : releases) {
+            final JsonObject release = element.getAsJsonObject();
+            if (release.has("draft") && release.get("draft").getAsBoolean()) {
+                continue;
+            }
+            tags.add(release.get("tag_name").getAsString());
+        }
+        return tags;
+    }
+
+    private static @Nullable Map<String, String> fetchTagCommits() {
+        final @Nullable JsonArray tags = getJsonArray("https://api.github.com/repos/" + REPOSITORY + "/tags?per_page=100");
+        if (tags == null) {
+            return null;
+        }
+        final Map<String, String> commits = new HashMap<>();
+        for (final var element : tags) {
+            final JsonObject tag = element.getAsJsonObject();
+            commits.put(tag.get("name").getAsString(), tag.getAsJsonObject("commit").get("sha").getAsString());
+        }
+        return commits;
+    }
+
+    private static @Nullable JsonArray getJsonArray(final String url) {
+        try {
+            final HttpURLConnection connection = (HttpURLConnection) URI.create(url).toURL().openConnection();
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(5000);
+            connection.setRequestProperty("User-Agent", USER_AGENT);
+            connection.setRequestProperty("Accept", "application/vnd.github+json");
+            try (final BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
+                return GSON.fromJson(reader, JsonArray.class);
+            }
+        } catch (final IOException | JsonSyntaxException e) {
+            LOGGER.error("Error querying the GitHub API ({})", url, e);
+            return null;
         }
     }
 

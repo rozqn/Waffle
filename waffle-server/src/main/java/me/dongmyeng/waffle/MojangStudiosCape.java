@@ -7,13 +7,13 @@ import java.net.URL;
 import java.util.UUID;
 import org.bukkit.profile.PlayerTextures;
 
-public final class WaffleCapes {
+public final class MojangStudiosCape {
 
     private static final UUID TARGET = UUID.fromString("7eb763a4-7abb-4755-b1f4-186d2e5ac9d2");
     private static final URL CAPE_URL =
         url("http://textures.minecraft.net/texture/9e507afc56359978a3eb3e32367042b853cddd0995d17d0da995662913fb00f7");
 
-    private WaffleCapes() {
+    private MojangStudiosCape() {
     }
 
     public static void apply(final PlayerProfile profile) {

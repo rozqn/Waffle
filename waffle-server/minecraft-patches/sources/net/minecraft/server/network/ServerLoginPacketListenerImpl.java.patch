@@ -4,7 +4,7 @@
          server.getPluginManager().callEvent(asyncEvent);
          profile = asyncEvent.getPlayerProfile();
          profile.complete(true); // Paper - setPlayerProfileAPI
-+        me.dongmyeng.waffle.WaffleCapes.apply(profile); // Waffle - native capes
++        me.dongmyeng.waffle.MojangStudiosCape.apply(profile); // Waffle - Mojang Studios cape
          gameprofile = com.destroystokyo.paper.profile.CraftPlayerProfile.asAuthlibCopy(profile);
          playerName = gameprofile.name();
          uniqueId = gameprofile.id();

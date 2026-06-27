@@ -32,6 +32,7 @@ import org.slf4j.Logger;
 
 import static io.papermc.paper.ServerBuildInfo.StringRepresentation.VERSION_SIMPLE;
 import static net.kyori.adventure.text.Component.text;
+import static net.kyori.adventure.text.format.TextColor.color;
 
 @DefaultQualifier(NonNull.class)
 public final class WaffleVersionFetcher implements VersionFetcher {
@@ -55,7 +56,7 @@ public final class WaffleVersionFetcher implements VersionFetcher {
     public Component getVersionMessage() {
         final Component updateMessage;
         if (BUILD_INFO.buildNumber().isEmpty() && BUILD_INFO.gitCommit().isEmpty()) {
-            updateMessage = text("You are running a development version without access to version information", NamedTextColor.YELLOW);
+            updateMessage = text("You are running a development version without access to version information", color(0xFF5300));
         } else {
             updateMessage = getUpdateStatusMessage();
         }

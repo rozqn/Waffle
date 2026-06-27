@@ -20,6 +20,8 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
+import org.apache.logging.log4j.LogManager;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.DefaultQualifier;
@@ -32,6 +34,7 @@ import static net.kyori.adventure.text.Component.text;
 public final class WaffleVersionFetcher implements VersionFetcher {
 
     private static final Logger LOGGER = LogUtils.getClassLogger();
+    private static final ComponentLogger COMPONENT_LOGGER = ComponentLogger.logger(LogManager.getRootLogger().getName());
     private static final int DISTANCE_ERROR = -1;
     private static final int DISTANCE_UNKNOWN = -2;
     private static final String REPOSITORY = "rozqn/Waffle";
@@ -129,6 +132,23 @@ public final class WaffleVersionFetcher implements VersionFetcher {
         } catch (final IOException | JsonSyntaxException | NumberFormatException e) {
             LOGGER.error("Error while fetching version distance from GitHub", e);
             return DISTANCE_ERROR;
+        }
+    }
+
+    public static void getUpdateStatusStartupMessage() {
+        if (BUILD_INFO.buildNumber().isEmpty() && BUILD_INFO.gitCommit().isEmpty()) {
+            COMPONENT_LOGGER.warn(text("*** You are running a development version without access to version information ***"));
+            return;
+        }
+        final Optional<String> latestTag = fetchLatestReleaseTag();
+        final Optional<String> gitCommit = BUILD_INFO.gitCommit();
+        if (latestTag.isEmpty() || gitCommit.isEmpty()) {
+            return;
+        }
+        final int distance = fetchDistanceFromGitHub(latestTag.get(), gitCommit.get());
+        if (distance > 0) {
+            COMPONENT_LOGGER.warn(text("*** You are running an outdated version of Waffle, " + distance + " release" + (distance == 1 ? "" : "s") + " behind ***"));
+            COMPONENT_LOGGER.warn(text("*** Download the latest build from " + DOWNLOAD_PAGE + " ***"));
         }
     }
 

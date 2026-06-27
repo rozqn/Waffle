@@ -1,0 +1,62 @@
+name: Bake optimization defaults
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["bake-optimization"]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bake:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Configure Git
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+      - name: Apply patches
+        run: ./gradlew applyAllPatches --stacktrace
+      - name: Bake optimization defaults into materialized source
+        run: python3 scripts/apply-optimization-defaults.py
+      - name: Commit baked changes into materialized repos
+        run: |
+          set -e
+          for repo in paper-server waffle-server/src/minecraft/java waffle-server/src/minecraft/resources; do
+            if [ -d "$repo/.git" ] && [ -n "$(git -C "$repo" status --porcelain)" ]; then
+              git -C "$repo" add -A
+              git -C "$repo" -c user.name="GitHub Actions" -c user.email="actions@github.com" commit -q -m "Waffle: bake optimization defaults"
+              echo "committed $repo -> $(git -C "$repo" log --oneline -1)"
+            else
+              echo "no changes in $repo"
+            fi
+          done
+      - name: Rebuild patches
+        run: ./gradlew rebuildPaperPatches waffle-server:rebuildAllServerPatches --stacktrace
+      - name: Open pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: optimization-defaults
+          base: main
+          title: Bake YouHaveTrouble optimization defaults into source
+          commit-message: Bake YouHaveTrouble optimization defaults into source
+          body: |
+            Bakes the values from the [minecraft-optimization](https://github.com/YouHaveTrouble/minecraft-optimization) guide into Waffle as shipped source defaults.
+
+            `scripts/apply-optimization-defaults.py` rewrites the materialized config defaults after `applyAllPatches`; the edits are committed into the `paper-server` and `waffle-server/src/minecraft/java` work trees, then `rebuildPatches` exports them as:
+
+            - `paper-patches/features/0001-Waffle-bake-optimization-defaults.patch` — `WorldConfiguration`, `SpigotWorldConfig`, `ArrowDespawnRate`, `bukkit.yml`
+            - `minecraft-patches/features/0001-Waffle-bake-optimization-defaults.patch` — `DedicatedServerProperties` (server.properties)
+
+            Already-default and Purpur-only settings are intentionally omitted. Review the diff before merging.

@@ -67,4 +67,14 @@ subprojects {
             events(TestLogEvent.STANDARD_OUT)
         }
     }
+
+    // paperweight 2.0.0-beta.21 on Gradle 9.x: several fork tasks read the upstream
+    // checkout (checkoutPaperRepo's output) without declaring a dependency on it, which
+    // trips Gradle's implicit-dependency validation when rebuilding patches. Declare the
+    // ordering Gradle asks for, across every task that may consume the checkout.
+    tasks.configureEach {
+        if (name != "checkoutPaperRepo") {
+            mustRunAfter(":checkoutPaperRepo")
+        }
+    }
 }

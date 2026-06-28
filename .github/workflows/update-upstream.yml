@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 env:
   PAPER_BRANCH: dev/26.2
@@ -42,14 +41,9 @@ jobs:
           sed -i "s/^paperRef=.*/paperRef=${{ steps.paper.outputs.latest }}/" gradle.properties
           ./gradlew applyAllPatches --stacktrace
           ./gradlew rebuildPaperPatches waffle-server:rebuildAllServerPatches --stacktrace
-      - name: Open pull request
+      - name: Commit upstream bump to main
         if: steps.paper.outputs.latest != steps.paper.outputs.current
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: update/upstream-paper
-          title: Update upstream Paper
-          commit-message: Update upstream Paper to ${{ steps.paper.outputs.latest }}
-          body: |
-            Bumps `paperRef` to [PaperMC/Paper@${{ steps.paper.outputs.latest }}](https://github.com/PaperMC/Paper/commit/${{ steps.paper.outputs.latest }}) (`${{ env.PAPER_BRANCH }}`).
-
-            Patches were rebuilt automatically. Review the diff before merging — a rebased upstream can require manual conflict resolution.
+        run: |
+          git add -A
+          git commit -m "Update upstream Paper to ${{ steps.paper.outputs.latest }}"
+          git push origin HEAD:main
